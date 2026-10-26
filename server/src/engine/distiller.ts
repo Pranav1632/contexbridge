@@ -22,13 +22,7 @@ export async function distillConversation(
   }
 
   try {
-    console.log(`[ContextBridge] 🤖 Contacting Gemini API to distill ${messages.length} conversation turns...`);
-    const genAI = new GoogleGenerativeAI(apiKey.trim());
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      generationConfig: { responseMimeType: 'application/json' },
-    });
-
+    console.log(`[ContextBridge] Contacting Gemini API to distill ${messages.length} conversation turns...`);
     const prompt = `You are ContextBridge, an intelligent AI memory engine.
 Analyze the following multi-turn conversation and distill it into a structured, zero-loss handoff bundle.
 Identify:
@@ -70,7 +64,29 @@ Conversation:
 ${fullText}
 `;
 
-    const result = await model.generateContent(prompt);
+    const genAI = new GoogleGenerativeAI(apiKey.trim());
+    // Auto-detect or use standard supported Gemini model identifier
+    const modelCandidates = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
+    let result = null;
+    let lastModelErr = null;
+
+    for (const modelName of modelCandidates) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: { responseMimeType: 'application/json' },
+        });
+        result = await model.generateContent(prompt);
+        console.log(`[ContextBridge] Distilled successfully using model: ${modelName}`);
+        break;
+      } catch (mErr: any) {
+        lastModelErr = mErr;
+      }
+    }
+
+    if (!result) {
+      throw lastModelErr || new Error('Failed to generate content with any candidate Gemini model');
+    }
     const responseText = result.response.text();
     const parsed = JSON.parse(responseText);
 
@@ -102,7 +118,7 @@ ${fullText}
       },
     };
   } catch (err: any) {
-    console.error('[ContextBridge] ❌ Gemini API Error:', err.message);
+    console.error('[ContextBridge] Gemini API Error:', err.message);
     throw new Error(`Gemini API distillation failed: ${err.message}`);
   }
 }
