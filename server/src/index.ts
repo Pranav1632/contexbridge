@@ -19,12 +19,21 @@ app.use('/*', cors());
 
 // 1. Serve Mock Chat Test Fixture
 app.get('/mock-chat.html', (c) => {
-  const filePath = path.join(__dirname, 'static', 'mock-chat.html');
-  if (fs.existsSync(filePath)) {
-    const html = fs.readFileSync(filePath, 'utf-8');
-    return c.html(html);
+  // Check dist/static or fallback to src/static
+  const candidates = [
+    path.join(__dirname, 'static', 'mock-chat.html'),
+    path.join(process.cwd(), 'src', 'static', 'mock-chat.html'),
+    path.join(process.cwd(), 'dist', 'static', 'mock-chat.html'),
+  ];
+
+  for (const filePath of candidates) {
+    if (fs.existsSync(filePath)) {
+      const html = fs.readFileSync(filePath, 'utf-8');
+      return c.html(html);
+    }
   }
-  return c.text('Mock chat file not found', 404);
+
+  return c.text('Mock chat file not found. Checked: ' + candidates.join(', '), 404);
 });
 
 // 2. Health check
