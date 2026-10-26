@@ -5,15 +5,15 @@ export const Pill: React.FC = () => {
   const [turnCount, setTurnCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [statusType, setStatusType] = useState<'success' | 'error' | 'info'>('info');
   const [showModal, setShowModal] = useState<boolean>(false);
   const [manualText, setManualText] = useState<string>('');
+  const [minimized, setMinimized] = useState<boolean>(false);
 
   useEffect(() => {
-    // Initial count
     const turns = scrapeCurrentChat();
     setTurnCount(turns.length);
 
-    // Watch for new chat turns added to the DOM
     const observer = new MutationObserver(() => {
       const updated = scrapeCurrentChat();
       setTurnCount(updated.length);
@@ -25,11 +25,13 @@ export const Pill: React.FC = () => {
 
   const handleBridge = async (overrideTurns?: any[]) => {
     setLoading(true);
-    setStatus('Distilling...');
+    setStatus('Distilling context...');
+    setStatusType('info');
     try {
       const turns = overrideTurns || scrapeCurrentChat();
       if (turns.length === 0) {
-        setStatus('No turns found! Use paste fallback.');
+        setStatus('No turns detected. Paste text in fallback!');
+        setStatusType('error');
         setLoading(false);
         return;
       }
@@ -45,14 +47,17 @@ export const Pill: React.FC = () => {
 
       const data = await res.json();
       if (data.success) {
-        setStatus(`Bridged! (${data.bundle.metrics.savingsPercent}% saved)`);
-        setTimeout(() => setStatus(null), 4000);
+        setStatus(`✓ Synced to MCP (${data.bundle.metrics.savingsPercent}% saved)`);
+        setStatusType('success');
+        setTimeout(() => setStatus(null), 4500);
       } else {
         setStatus('Server error');
+        setStatusType('error');
       }
     } catch (err: any) {
       console.error(err);
       setStatus('Server offline (:3100)');
+      setStatusType('error');
     } finally {
       setLoading(false);
     }
@@ -61,7 +66,7 @@ export const Pill: React.FC = () => {
   const handleManualSubmit = () => {
     if (!manualText.trim()) return;
     const manualTurns = [
-      { role: 'user', content: 'Manual pasted conversation context' },
+      { role: 'user', content: 'Manual conversation context' },
       { role: 'assistant', content: manualText.trim() },
     ];
     handleBridge(manualTurns);
@@ -77,87 +82,156 @@ export const Pill: React.FC = () => {
           position: 'fixed',
           bottom: '24px',
           right: '24px',
-          zIndex: 999999,
+          zIndex: 9999999,
           display: 'flex',
           alignItems: 'center',
-          gap: '10px',
-          backgroundColor: '#0f172a',
+          gap: '8px',
+          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))',
           color: '#f8fafc',
-          padding: '8px 14px',
+          padding: minimized ? '6px 12px' : '7px 12px',
           borderRadius: '9999px',
-          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4)',
-          border: '1px solid #334155',
-          fontSize: '13px',
+          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5), 0 8px 10px -6px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(16px)',
+          fontSize: '12px',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          backdropFilter: 'blur(10px)',
+          transition: 'all 0.25s ease',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '15px' }}>🌉</span>
-          <strong style={{ fontWeight: 600 }}>ContextBridge</strong>
-          <span
+        {/* Brand identity */}
+        <div
+          onClick={() => setMinimized(!minimized)}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', userSelect: 'none' }}
+          title={minimized ? 'Click to expand' : 'Click to minimize'}
+        >
+          <div
             style={{
-              backgroundColor: '#1e293b',
-              padding: '2px 8px',
-              borderRadius: '9999px',
+              width: '20px',
+              height: '20px',
+              borderRadius: '6px',
+              background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               fontSize: '11px',
-              color: '#94a3b8',
-              border: '1px solid #334155',
+              boxShadow: '0 2px 8px rgba(99, 102, 241, 0.4)',
             }}
           >
-            {turnCount} turns
-          </span>
-        </div>
-
-        <button
-          onClick={() => handleBridge()}
-          disabled={loading}
-          style={{
-            backgroundColor: '#6366f1',
-            color: 'white',
-            border: 'none',
-            padding: '5px 12px',
-            borderRadius: '9999px',
-            fontWeight: 600,
-            cursor: loading ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '12px',
-            transition: 'background-color 0.2s',
-          }}
-          onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#4f46e5')}
-          onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#6366f1')}
-        >
-          {loading ? '⏳' : '⚡'} Send to IDE (MCP)
-        </button>
-
-        <button
-          onClick={() => setShowModal(true)}
-          title="Paste/Drop text fallback"
-          style={{
-            backgroundColor: '#1e293b',
-            color: '#94a3b8',
-            border: '1px solid #334155',
-            padding: '4px 8px',
-            borderRadius: '9999px',
-            cursor: 'pointer',
-            fontSize: '11px',
-          }}
-        >
-          📋 Fallback
-        </button>
-
-        {status && (
+            🌉
+          </div>
+          <span style={{ fontWeight: 600, letterSpacing: '-0.01em' }}>ContextBridge</span>
           <span
             style={{
-              fontSize: '11px',
-              color: status.includes('Bridged') ? '#4ade80' : '#f87171',
+              backgroundColor: 'rgba(255,255,255,0.08)',
+              color: '#94a3b8',
+              padding: '1px 7px',
+              borderRadius: '9999px',
+              fontSize: '10.5px',
               fontWeight: 500,
             }}
           >
-            {status}
+            {turnCount}t
           </span>
+        </div>
+
+        {!minimized && (
+          <>
+            <div style={{ width: '1px', height: '14px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
+
+            {/* Hero Action: Send to IDE */}
+            <button
+              onClick={() => handleBridge()}
+              disabled={loading}
+              style={{
+                background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
+                color: '#ffffff',
+                border: 'none',
+                padding: '4px 12px',
+                borderRadius: '9999px',
+                fontWeight: 600,
+                fontSize: '11.5px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                boxShadow: '0 2px 8px rgba(79, 70, 229, 0.35)',
+                transition: 'transform 0.15s, opacity 0.15s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.03)')}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1.0)')}
+            >
+              {loading ? '⚡ Syncing...' : '⚡ Send to IDE (MCP)'}
+            </button>
+
+            {/* Quick Export link */}
+            <a
+              href="http://localhost:3100/api/context/export/markdown"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                color: '#cbd5e1',
+                textDecoration: 'none',
+                padding: '4px 9px',
+                borderRadius: '9999px',
+                fontSize: '11px',
+                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+              title="Download clean Markdown handoff"
+            >
+              📥 .md
+            </a>
+
+            {/* Fallback button */}
+            <button
+              onClick={() => setShowModal(true)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                fontSize: '11px',
+                padding: '2px 4px',
+              }}
+              title="Manual Paste Fallback"
+            >
+              📋
+            </button>
+          </>
+        )}
+
+        {status && (
+          <div
+            style={{
+              fontSize: '10.5px',
+              fontWeight: 500,
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              backgroundColor:
+                statusType === 'success'
+                  ? 'rgba(34, 197, 94, 0.15)'
+                  : statusType === 'error'
+                  ? 'rgba(239, 68, 68, 0.15)'
+                  : 'rgba(99, 102, 241, 0.15)',
+              color:
+                statusType === 'success'
+                  ? '#4ade80'
+                  : statusType === 'error'
+                  ? '#f87171'
+                  : '#a5b4fc',
+              border: `1px solid ${
+                statusType === 'success'
+                  ? 'rgba(34, 197, 94, 0.3)'
+                  : statusType === 'error'
+                  ? 'rgba(239, 68, 68, 0.3)'
+                  : 'rgba(99, 102, 241, 0.3)'
+              }`,
+            }}
+          >
+            {status}
+          </div>
         )}
       </div>
 
@@ -166,65 +240,80 @@ export const Pill: React.FC = () => {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)',
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000000,
+            zIndex: 10000000,
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
           }}
         >
           <div
             style={{
               backgroundColor: '#0f172a',
-              border: '1px solid #334155',
-              borderRadius: '12px',
-              padding: '20px',
-              maxWidth: '520px',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '540px',
               width: '90%',
               color: '#f8fafc',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <strong>📋 Emergency Paste / Drop Context</strong>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '18px' }}>📋</span>
+                <strong style={{ fontSize: '15px' }}>Manual Context Ingestion</strong>
+              </div>
               <button
                 onClick={() => setShowModal(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: 'none',
+                  color: '#94a3b8',
+                  borderRadius: '9999px',
+                  width: '26px',
+                  height: '26px',
+                  cursor: 'pointer',
+                }}
               >
                 ✕
               </button>
             </div>
-            <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '12px' }}>
-              If DOM scraping ever hiccups on stage, paste chat or markdown notes here to distill instantly:
+            <p style={{ fontSize: '12.5px', color: '#94a3b8', lineHeight: 1.5, marginBottom: '14px' }}>
+              If live DOM scraping is unavailable on stage, paste your chat transcript, requirements, or code notes below. ContextBridge will compress and structure it for MCP agents immediately.
             </p>
             <textarea
               rows={8}
               value={manualText}
               onChange={(e) => setManualText(e.target.value)}
-              placeholder="Paste conversation or project requirements here..."
+              placeholder="Paste conversation or architecture notes..."
               style={{
                 width: '100%',
                 backgroundColor: '#1e293b',
-                border: '1px solid #334155',
-                borderRadius: '8px',
-                padding: '10px',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '10px',
+                padding: '12px',
                 color: '#f8fafc',
                 fontSize: '13px',
-                fontFamily: 'monospace',
+                fontFamily: 'ui-monospace, Menlo, Monaco, monospace',
                 boxSizing: 'border-box',
-                marginBottom: '12px',
+                outline: 'none',
+                marginBottom: '16px',
               }}
             />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button
                 onClick={() => setShowModal(false)}
                 style={{
-                  backgroundColor: '#1e293b',
+                  backgroundColor: 'rgba(255,255,255,0.06)',
                   color: '#94a3b8',
-                  border: '1px solid #334155',
-                  padding: '8px 14px',
-                  borderRadius: '6px',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
                   cursor: 'pointer',
+                  fontSize: '12px',
                 }}
               >
                 Cancel
@@ -232,13 +321,15 @@ export const Pill: React.FC = () => {
               <button
                 onClick={handleManualSubmit}
                 style={{
-                  backgroundColor: '#6366f1',
+                  background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
                   color: 'white',
                   border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '6px',
+                  padding: '8px 18px',
+                  borderRadius: '8px',
                   fontWeight: 600,
+                  fontSize: '12px',
                   cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(79, 70, 229, 0.4)',
                 }}
               >
                 Distill & Bridge

@@ -1,9 +1,12 @@
-import { ChatMessage, ContextBridgeBundle } from '../schema/contextBridge.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { ChatMessage, ContextBridgeBundle, ContextBridgeBundleSchema } from '../schema/contextBridge.js';
+import dotenv from 'dotenv';
+dotenv.config();
 
 /**
  * Distills raw conversation turns into a structured ContextBridgeBundle.
- * Features an intelligent heuristic extractor that works 100% offline with zero external dependencies,
- * plus hook for Gemini / Claude API if an API key is provided.
+ * Uses real Gemini API if GEMINI_API_KEY is present;
+ * otherwise automatically uses the deterministic heuristic engine (offline zero-fail).
  */
 export async function distillConversation(
   messages: ChatMessage[],
@@ -12,12 +15,105 @@ export async function distillConversation(
   const fullText = messages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
   const rawTokens = Math.round(fullText.length / 4);
 
-  // If GEMINI_API_KEY is available, we could run the generative extractor.
-  // We provide a deterministic, zero-fail heuristic extractor that operates offline:
-  const bundle = extractHeuristically(messages, source, rawTokens);
-  return bundle;
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey && apiKey.trim() !== '') {
+    try {
+      console.log('[ContextBridge] 🤖 Using live Gemini LLM for cognitive distillation...');
+      return await extractWithGemini(messages, source, rawTokens, apiKey);
+    } catch (err: any) {
+      console.warn('[ContextBridge] ⚠️ Gemini API call failed or quota exceeded. Falling back to local offline engine:', err.message);
+    }
+  } else {
+    console.log('[ContextBridge] ⚡ No GEMINI_API_KEY detected in .env. Running deterministic heuristic engine (offline demo mode)...');
+  }
+
+  return extractHeuristically(messages, source, rawTokens);
 }
 
+/**
+ * Real LLM distillation via Google Gemini
+ */
+async function extractWithGemini(
+  messages: ChatMessage[],
+  source: string,
+  rawTokens: number,
+  apiKey: string
+): Promise<ContextBridgeBundle> {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-1.5-flash',
+    generationConfig: { responseMimeType: 'application/json' },
+  });
+
+  const prompt = `You are ContextBridge, an intelligent AI memory engine.
+Analyze the following multi-turn conversation and distill it into a structured, zero-loss handoff bundle.
+Identify the active user goal, architectural decisions made (with rationale and rejected alternatives), touched code files and snippets, rejected paths that the next AI should NOT re-propose, and immediate next steps.
+
+Return strictly valid JSON adhering to this schema:
+{
+  "activeGoal": string,
+  "techStack": string[],
+  "decisions": [
+    {
+      "topic": string,
+      "decision": string,
+      "reason": string,
+      "rejectedAlternatives": string[]
+    }
+  ],
+  "codeContext": {
+    "activeFiles": string[],
+    "keySnippets": [
+      {
+        "filePath": string,
+        "language": string,
+        "snippet": string,
+        "purpose": string
+      }
+    ]
+  },
+  "rejectedPaths": string[],
+  "nextSteps": string[],
+  "openQuestions": string[]
+}
+
+Conversation:
+${messages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n')}
+`;
+
+  const result = await model.generateContent(prompt);
+  const responseText = result.response.text();
+  const parsed = JSON.parse(responseText);
+
+  const compressedTokens = Math.round(responseText.length / 4);
+  const savingsPercent = rawTokens > 0 ? Math.max(0, Math.round(((rawTokens - compressedTokens) / rawTokens) * 100)) : 0;
+
+  return {
+    id: `cb-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    source,
+    project: {
+      name: 'Active Project',
+      techStack: parsed.techStack || ['TypeScript'],
+    },
+    activeGoal: parsed.activeGoal || 'General Development Task',
+    decisions: parsed.decisions || [],
+    codeContext: parsed.codeContext || { activeFiles: [], keySnippets: [] },
+    rejectedPaths: parsed.rejectedPaths || [],
+    nextSteps: parsed.nextSteps || [],
+    openQuestions: parsed.openQuestions || [],
+    metrics: {
+      rawTurns: messages.length,
+      rawTokenEstimate: rawTokens,
+      compressedTokenEstimate: compressedTokens,
+      savingsPercent,
+    },
+  };
+}
+
+/**
+ * Deterministic offline extractor
+ */
 function extractHeuristically(
   messages: ChatMessage[],
   source: string,
@@ -26,11 +122,9 @@ function extractHeuristically(
   const id = `cb-${Date.now()}`;
   const createdAt = new Date().toISOString();
 
-  // Find user objectives & questions
   const userMessages = messages.filter((m) => m.role === 'user');
   const assistantMessages = messages.filter((m) => m.role === 'assistant');
 
-  // Derive active goal from earliest user messages or explicit goal lines
   let activeGoal = 'General architecture & implementation task';
   if (userMessages.length > 0) {
     const firstUserMsg = userMessages[0].content;
@@ -42,14 +136,11 @@ function extractHeuristically(
     }
   }
 
-  // Extract decisions and alternatives
   const decisions: { topic: string; decision: string; reason?: string; rejectedAlternatives: string[] }[] = [];
   const rejectedPaths: string[] = [];
 
   for (const msg of messages) {
     const text = msg.content;
-
-    // Detect "decided to / chosen / using X instead of Y"
     const insteadOfMatch = text.match(/(?:use|using|chose|chosen)\s+([A-Za-z0-9_-]+)\s+instead of\s+([A-Za-z0-9_-]+)/i);
     if (insteadOfMatch) {
       decisions.push({
@@ -61,14 +152,12 @@ function extractHeuristically(
       rejectedPaths.push(`${insteadOfMatch[2]} (replaced by ${insteadOfMatch[1]})`);
     }
 
-    // Detect explicit rejections
     const rejectMatch = text.match(/(?:reject|rejected|avoid|don't use|not using)\s+([A-Za-z0-9_-]+)(?:\s+because\s+([^.\n]+))?/i);
     if (rejectMatch && !rejectedPaths.includes(rejectMatch[1])) {
       rejectedPaths.push(rejectMatch[1] + (rejectMatch[2] ? ` (${rejectMatch[2].trim()})` : ''));
     }
   }
 
-  // Extract code snippets
   const keySnippets: { filePath: string; language: string; snippet: string; purpose?: string }[] = [];
   const activeFilesSet = new Set<string>();
 
@@ -79,7 +168,6 @@ function extractHeuristically(
       const language = match[1] || 'typescript';
       const snippet = match[2].trim();
       if (snippet.length > 20) {
-        // Detect file name comment e.g. // auth.ts or # server.py
         const fileCommentMatch = snippet.match(/^(?:\/\/|#|\/\*)\s*([a-zA-Z0-9_\-./\\]+\.[a-zA-Z0-9]+)/m);
         const filePath = fileCommentMatch ? fileCommentMatch[1] : `snippet-${keySnippets.length + 1}.${language === 'typescript' ? 'ts' : 'txt'}`;
         activeFilesSet.add(filePath);
@@ -96,7 +184,6 @@ function extractHeuristically(
     }
   }
 
-  // Extract next steps / open questions
   const nextSteps: string[] = [];
   const openQuestions: string[] = [];
 
@@ -154,9 +241,6 @@ function extractHeuristically(
   };
 }
 
-/**
- * Generates ready-to-paste Markdown handoff representation.
- */
 export function formatHandoffMarkdown(bundle: ContextBridgeBundle): string {
   return `# 🌉 ContextBridge Handoff: ${bundle.activeGoal}
 *Captured: ${bundle.createdAt} | Source: ${bundle.source}*
