@@ -79,22 +79,19 @@ export const Pill: React.FC = () => {
       <div
         id="contextbridge-pill"
         style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          zIndex: 9999999,
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))',
+          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95))',
           color: '#f8fafc',
-          padding: minimized ? '6px 12px' : '7px 12px',
+          padding: minimized ? '6px 12px' : '8px 14px',
           borderRadius: '9999px',
-          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5), 0 8px 10px -6px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08)',
-          backdropFilter: 'blur(16px)',
+          boxShadow: '0 20px 30px -5px rgba(0,0,0,0.7), 0 0 0 1px rgba(99, 102, 241, 0.4)',
+          backdropFilter: 'blur(20px)',
           fontSize: '12px',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
           transition: 'all 0.25s ease',
+          pointerEvents: 'auto',
         }}
       >
         {/* Brand identity */}
