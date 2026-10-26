@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "ContextBridge - Ambient AI Context & Memory",
+  "version": "1.0.0",
+  "description": "Capture AI conversation state and teleport context across tools, terminal agents, and files without loss.",
+  "permissions": ["activeTab", "clipboardRead"],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://claude.ai/*",
+    "http://localhost:3100/*",
+    "http://localhost:3000/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ContextBridge Status"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://claude.ai/*",
+        "http://localhost:3100/*",
+        "http://localhost:3000/*"
+      ],
+      "js": ["src/content/index.tsx"],
+      "run_at": "document_idle"
+    }
+  ]
+}
