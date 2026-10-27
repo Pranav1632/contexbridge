@@ -123,10 +123,16 @@ export function saveActiveBundle(bundle: ContextBridgeBundle): void {
   // 2. Write structured bundle to universal global ~/.contextbridge/
   writeContextBundle(GLOBAL_CONTEXTBRIDGE_DIR);
 
-  // 3. Write CODEX.md & AGENTS.md to user's home directory
+  // 3. Write CODEX.md & AGENTS.md to user's home directory and active workspace
   try {
     fs.writeFileSync(path.join(USER_HOME, 'CODEX.md'), markdown, 'utf-8');
     fs.writeFileSync(path.join(USER_HOME, 'AGENTS.md'), markdown, 'utf-8');
+
+    // Auto-sync directly to your active Codex project directory
+    const activeWorkspace = path.join(USER_HOME, 'OneDrive', 'Documents', 'ChatGPT', 'alanprojecttest');
+    if (fs.existsSync(activeWorkspace)) {
+      writeContextBundle(activeWorkspace);
+    }
   } catch (e) {}
 
   // 4. Custom workspace if configured
