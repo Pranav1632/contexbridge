@@ -25,8 +25,21 @@ export function saveActiveBundle(bundle: ContextBridgeBundle): void {
   if (!fs.existsSync(STORAGE_DIR)) {
     fs.mkdirSync(STORAGE_DIR, { recursive: true });
   }
+  const markdown = formatHandoffMarkdown(bundle);
   fs.writeFileSync(ACTIVE_FILE, JSON.stringify(bundle, null, 2), 'utf-8');
-  fs.writeFileSync(path.join(STORAGE_DIR, 'handoff.md'), formatHandoffMarkdown(bundle), 'utf-8');
+  fs.writeFileSync(path.join(STORAGE_DIR, 'handoff.md'), markdown, 'utf-8');
+
+  // Also auto-generate root instruction files recognized by OpenAI Codex, Cursor, and Claude agents
+  try {
+    const rootDir = process.cwd();
+    // 1. CODEX.md / AGENTS.md for OpenAI Codex & Agent frameworks
+    fs.writeFileSync(path.join(rootDir, 'CODEX.md'), markdown, 'utf-8');
+    fs.writeFileSync(path.join(rootDir, 'AGENTS.md'), markdown, 'utf-8');
+    // 2. CLAUDE.md for Claude Code CLI
+    fs.writeFileSync(path.join(rootDir, 'CLAUDE.md'), markdown, 'utf-8');
+  } catch (err) {
+    console.warn('Note: Could not write workspace root instruction files:', err);
+  }
 }
 
 export function createMCPServer(): Server {
