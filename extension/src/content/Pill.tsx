@@ -36,22 +36,46 @@ export const Pill: React.FC = () => {
         return;
       }
 
-      const res = await fetch('http://localhost:3100/api/capture', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          source: window.location.hostname,
-          messages: turns,
-        }),
-      });
+      // Dispatch via Chrome runtime background worker to bypass Claude.ai Content Security Policy (CSP)
+      const payload = {
+        source: window.location.hostname,
+        messages: turns,
+      };
 
-      const data = await res.json();
-      if (data.success) {
-        setStatus(`✓ Synced to MCP (${data.bundle.metrics.savingsPercent}% saved)`);
+      let responseData: any = null;
+
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        responseData = await new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            { action: 'CAPTURE_CONVERSATION', payload },
+            (response) => {
+              if (chrome.runtime.lastError) {
+                resolve({ success: false, error: chrome.runtime.lastError.message });
+              } else {
+                resolve(response);
+              }
+            }
+          );
+        });
+      } else {
+        // Direct fetch fallback for environments without chrome.runtime
+        const res = await fetch('http://localhost:3100/api/capture', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json();
+        responseData = { success: res.ok, data: json };
+      }
+
+      if (responseData && responseData.success) {
+        const bundle = responseData.data?.bundle;
+        setStatus(`✓ Synced to MCP (${bundle?.metrics?.savingsPercent || 0}% saved)`);
         setStatusType('success');
         setTimeout(() => setStatus(null), 4500);
       } else {
-        setStatus('Server error');
+        const errText = responseData?.error || responseData?.data?.error || 'Distillation failed';
+        setStatus(errText.includes('offline') ? 'Server offline (:3100)' : `Error: ${errText}`);
         setStatusType('error');
       }
     } catch (err: any) {
