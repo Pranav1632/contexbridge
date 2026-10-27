@@ -150,6 +150,27 @@ npm run build
 
 ---
 
+## 📸 Live Proof & Case Study (Claude.ai ➔ OpenAI Codex)
+
+> Real conversation: [Claude Shared Chat: Browser-based 2D multiplayer dinosaur survival arena](https://claude.ai/share/07abd779-6ae7-48de-a66a-ce02c0b17c8f)
+
+### 1. Registering ContextBridge MCP in OpenAI Codex
+Configure ContextBridge as a native Model Context Protocol server in Codex:
+
+![Codex MCP Configuration](docs/images/codex-mcp-setup.png)
+
+### 2. Live Automated Handoff & Code Generation
+Codex discovers ContextBridge via MCP, retrieves the active architectural context, and immediately implements the first Phaser 3 prototype milestone without starting over:
+
+![Codex Implementing Prototype via ContextBridge](docs/images/codex-contextbridge-verified.png)
+
+### 3. Full Architectural Context & Decisions Retained
+Codex restates the exact game concept, locked tech stack (Phaser 3 + Colyseus + Vite), and immediate survival loop next steps extracted directly from Claude:
+
+![Codex Context Explanation](docs/images/codex-context-explanation.png)
+
+---
+
 ## 🎮 How to Demo & Use
 
 ### Step 1: Brainstorm in Your Browser
