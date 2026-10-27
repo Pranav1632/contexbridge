@@ -7,6 +7,15 @@
 [![MCP Protocol](https://img.shields.io/badge/Protocol-Model%20Context%20Protocol%20(MCP)-8A2BE2.svg)](https://modelcontextprotocol.io/)
 [![LLM: Google Gemini](https://img.shields.io/badge/Distillation-Gemini%203.5%20%2F%203.8%20Flash-4285F4.svg)](https://aistudio.google.com/)
 [![Extension: Manifest V3](https://img.shields.io/badge/Chrome%20Extension-Manifest%20V3-34A853.svg)](#)
+[![YouTube Demo](https://img.shields.io/badge/YouTube-Live%20Demo-red.svg?logo=youtube)](https://youtu.be/BKXU9mtP5gI)
+
+---
+
+## 🎬 Demo Video
+
+[![ContextBridge Walkthrough & Demo](https://img.youtube.com/vi/BKXU9mtP5gI/maxresdefault.jpg)](https://youtu.be/BKXU9mtP5gI)
+
+> 📺 **Watch the Walkthrough & Live Demo on YouTube**: [https://youtu.be/BKXU9mtP5gI](https://youtu.be/BKXU9mtP5gI)
 
 ---
 
@@ -174,6 +183,8 @@ Codex restates the exact game concept, locked tech stack (Phaser 3 + Colyseus + 
 ---
 
 ## 🎮 How to Demo & Use
+
+> 💡 **Prefer video?** Watch our [end-to-end walkthrough and live handoff demo on YouTube](https://youtu.be/BKXU9mtP5gI).
 
 ### Step 1: Brainstorm in Your Browser
 Open [http://localhost:3100/mock-chat.html](http://localhost:3100/mock-chat.html), `https://chatgpt.com`, or `https://claude.ai`.
