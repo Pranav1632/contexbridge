@@ -40,31 +40,100 @@ export function saveActiveBundle(bundle: ContextBridgeBundle): void {
   const markdown = formatHandoffMarkdown(bundle);
   const jsonStr = JSON.stringify(bundle, null, 2);
 
-  // 1. Write to local server directory
-  fs.writeFileSync(ACTIVE_FILE, jsonStr, 'utf-8');
-  fs.writeFileSync(path.join(LOCAL_STORAGE_DIR, 'handoff.md'), markdown, 'utf-8');
+  // Helper to write complete multi-file structured context bundle
+  const writeContextBundle = (baseDir: string) => {
+    const contextSubdir = path.join(baseDir, 'context');
+    const memorySubdir = path.join(baseDir, 'memory');
 
-  // 2. Write to UNIVERSAL GLOBAL LOCATION (~/.contextbridge/)
-  // Accessible anywhere on your PC without configuring workspace folders!
-  fs.writeFileSync(GLOBAL_ACTIVE_FILE, jsonStr, 'utf-8');
-  fs.writeFileSync(path.join(GLOBAL_CONTEXTBRIDGE_DIR, 'handoff.md'), markdown, 'utf-8');
-  fs.writeFileSync(path.join(GLOBAL_CONTEXTBRIDGE_DIR, 'CODEX.md'), markdown, 'utf-8');
-  fs.writeFileSync(path.join(GLOBAL_CONTEXTBRIDGE_DIR, 'AGENTS.md'), markdown, 'utf-8');
+    if (!fs.existsSync(contextSubdir)) fs.mkdirSync(contextSubdir, { recursive: true });
+    if (!fs.existsSync(memorySubdir)) fs.mkdirSync(memorySubdir, { recursive: true });
 
-  // 3. Also write directly to user's root home folder: C:\Users\ACER\CODEX.md
+    // 1. Root files
+    fs.writeFileSync(path.join(baseDir, 'active_context.json'), jsonStr, 'utf-8');
+    fs.writeFileSync(path.join(baseDir, 'handoff.md'), markdown, 'utf-8');
+    fs.writeFileSync(path.join(baseDir, 'CODEX.md'), markdown, 'utf-8');
+    fs.writeFileSync(path.join(baseDir, 'AGENTS.md'), markdown, 'utf-8');
+
+    // 2. Structured Subfolder: context/
+    fs.writeFileSync(
+      path.join(contextSubdir, '01-project-overview.md'),
+      `# Project Overview\n\n## Goal\n${bundle.activeGoal}\n\n## Tech Stack\n${bundle.project.techStack.map((t) => `- ${t}`).join('\n')}\n`,
+      'utf-8'
+    );
+
+    fs.writeFileSync(
+      path.join(contextSubdir, '02-decisions-log.md'),
+      `# Architectural Decisions Log\n\n${bundle.decisions
+        .map(
+          (d) =>
+            `### ${d.topic}\n- **Decision**: ${d.decision}\n- **Reason**: ${d.reason || 'N/A'}\n- **Rejected Alternatives**: ${d.rejectedAlternatives.join(', ') || 'None'}\n`
+        )
+        .join('\n')}`,
+      'utf-8'
+    );
+
+    fs.writeFileSync(
+      path.join(contextSubdir, '03-rejected-paths.md'),
+      `# Explicit Rejected Paths\n\nThese architectural options were explicitly evaluated and rejected. Do NOT re-propose:\n\n${bundle.rejectedPaths
+        .map((p) => `- ❌ ${p}`)
+        .join('\n')}\n`,
+      'utf-8'
+    );
+
+    fs.writeFileSync(
+      path.join(contextSubdir, '04-code-and-files.md'),
+      `# Active Code & Files\n\n- **Referenced Files**: ${bundle.codeContext.activeFiles.join(', ') || 'None'}\n\n${bundle.codeContext.keySnippets
+        .map((s) => `### \`${s.filePath}\`\n\`\`\`${s.language}\n${s.snippet}\n\`\`\`\n`)
+        .join('\n')}`,
+      'utf-8'
+    );
+
+    fs.writeFileSync(
+      path.join(contextSubdir, '05-next-steps.md'),
+      `# Immediate Actionable Next Steps\n\n${bundle.nextSteps.map((step, idx) => `${idx + 1}. ${step}`).join('\n')}\n`,
+      'utf-8'
+    );
+
+    // 3. Structured Subfolder: memory/
+    fs.writeFileSync(
+      path.join(memorySubdir, 'facts.json'),
+      JSON.stringify(
+        {
+          project: bundle.project.name,
+          techStack: bundle.project.techStack,
+          source: bundle.source,
+          createdAt: bundle.createdAt,
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    );
+
+    fs.writeFileSync(
+      path.join(memorySubdir, 'decisions.json'),
+      JSON.stringify(bundle.decisions, null, 2),
+      'utf-8'
+    );
+  };
+
+  // 1. Write structured bundle to local server .contextbridge/
+  writeContextBundle(LOCAL_STORAGE_DIR);
+
+  // 2. Write structured bundle to universal global ~/.contextbridge/
+  writeContextBundle(GLOBAL_CONTEXTBRIDGE_DIR);
+
+  // 3. Write CODEX.md & AGENTS.md to user's home directory
   try {
     fs.writeFileSync(path.join(USER_HOME, 'CODEX.md'), markdown, 'utf-8');
     fs.writeFileSync(path.join(USER_HOME, 'AGENTS.md'), markdown, 'utf-8');
-  } catch (e) {
-    // ignore permission errors if home is restricted
-  }
+  } catch (e) {}
 
-  // 4. If user specified an explicit WORKSPACE_DIR in .env or request, write there too
+  // 4. Custom workspace if configured
   const customWorkspace = process.env.WORKSPACE_DIR;
   if (customWorkspace && fs.existsSync(customWorkspace)) {
     try {
-      fs.writeFileSync(path.join(customWorkspace, 'CODEX.md'), markdown, 'utf-8');
-      fs.writeFileSync(path.join(customWorkspace, 'AGENTS.md'), markdown, 'utf-8');
+      writeContextBundle(customWorkspace);
     } catch {}
   }
 }
