@@ -6,14 +6,24 @@ import path from 'path';
 import { ContextBridgeBundle } from '../schema/contextBridge.js';
 import { formatHandoffMarkdown } from '../engine/distiller.js';
 
-const STORAGE_DIR = path.resolve(process.cwd(), '.contextbridge');
-const ACTIVE_FILE = path.join(STORAGE_DIR, 'active_context.json');
+import os from 'os';
+
+// Universal global locations recognized by all AI coding tools and users
+const USER_HOME = os.homedir();
+const GLOBAL_CONTEXTBRIDGE_DIR = path.join(USER_HOME, '.contextbridge');
+const LOCAL_STORAGE_DIR = path.resolve(process.cwd(), '.contextbridge');
+const ACTIVE_FILE = path.join(LOCAL_STORAGE_DIR, 'active_context.json');
+const GLOBAL_ACTIVE_FILE = path.join(GLOBAL_CONTEXTBRIDGE_DIR, 'active_context.json');
 
 function loadActiveBundle(): ContextBridgeBundle | null {
   try {
-    if (fs.existsSync(ACTIVE_FILE)) {
-      const raw = fs.readFileSync(ACTIVE_FILE, 'utf-8');
-      return JSON.parse(raw) as ContextBridgeBundle;
+    // 1. Check local repo, then fallback to global user directory
+    const candidates = [ACTIVE_FILE, GLOBAL_ACTIVE_FILE];
+    for (const f of candidates) {
+      if (fs.existsSync(f)) {
+        const raw = fs.readFileSync(f, 'utf-8');
+        return JSON.parse(raw) as ContextBridgeBundle;
+      }
     }
   } catch (err) {
     console.error('Error reading active bundle:', err);
@@ -22,23 +32,40 @@ function loadActiveBundle(): ContextBridgeBundle | null {
 }
 
 export function saveActiveBundle(bundle: ContextBridgeBundle): void {
-  if (!fs.existsSync(STORAGE_DIR)) {
-    fs.mkdirSync(STORAGE_DIR, { recursive: true });
-  }
-  const markdown = formatHandoffMarkdown(bundle);
-  fs.writeFileSync(ACTIVE_FILE, JSON.stringify(bundle, null, 2), 'utf-8');
-  fs.writeFileSync(path.join(STORAGE_DIR, 'handoff.md'), markdown, 'utf-8');
+  // Ensure both local and global folders exist
+  [LOCAL_STORAGE_DIR, GLOBAL_CONTEXTBRIDGE_DIR].forEach((dir) => {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  });
 
-  // Also auto-generate root instruction files recognized by OpenAI Codex, Cursor, and Claude agents
+  const markdown = formatHandoffMarkdown(bundle);
+  const jsonStr = JSON.stringify(bundle, null, 2);
+
+  // 1. Write to local server directory
+  fs.writeFileSync(ACTIVE_FILE, jsonStr, 'utf-8');
+  fs.writeFileSync(path.join(LOCAL_STORAGE_DIR, 'handoff.md'), markdown, 'utf-8');
+
+  // 2. Write to UNIVERSAL GLOBAL LOCATION (~/.contextbridge/)
+  // Accessible anywhere on your PC without configuring workspace folders!
+  fs.writeFileSync(GLOBAL_ACTIVE_FILE, jsonStr, 'utf-8');
+  fs.writeFileSync(path.join(GLOBAL_CONTEXTBRIDGE_DIR, 'handoff.md'), markdown, 'utf-8');
+  fs.writeFileSync(path.join(GLOBAL_CONTEXTBRIDGE_DIR, 'CODEX.md'), markdown, 'utf-8');
+  fs.writeFileSync(path.join(GLOBAL_CONTEXTBRIDGE_DIR, 'AGENTS.md'), markdown, 'utf-8');
+
+  // 3. Also write directly to user's root home folder: C:\Users\ACER\CODEX.md
   try {
-    const rootDir = process.cwd();
-    // 1. CODEX.md / AGENTS.md for OpenAI Codex & Agent frameworks
-    fs.writeFileSync(path.join(rootDir, 'CODEX.md'), markdown, 'utf-8');
-    fs.writeFileSync(path.join(rootDir, 'AGENTS.md'), markdown, 'utf-8');
-    // 2. CLAUDE.md for Claude Code CLI
-    fs.writeFileSync(path.join(rootDir, 'CLAUDE.md'), markdown, 'utf-8');
-  } catch (err) {
-    console.warn('Note: Could not write workspace root instruction files:', err);
+    fs.writeFileSync(path.join(USER_HOME, 'CODEX.md'), markdown, 'utf-8');
+    fs.writeFileSync(path.join(USER_HOME, 'AGENTS.md'), markdown, 'utf-8');
+  } catch (e) {
+    // ignore permission errors if home is restricted
+  }
+
+  // 4. If user specified an explicit WORKSPACE_DIR in .env or request, write there too
+  const customWorkspace = process.env.WORKSPACE_DIR;
+  if (customWorkspace && fs.existsSync(customWorkspace)) {
+    try {
+      fs.writeFileSync(path.join(customWorkspace, 'CODEX.md'), markdown, 'utf-8');
+      fs.writeFileSync(path.join(customWorkspace, 'AGENTS.md'), markdown, 'utf-8');
+    } catch {}
   }
 }
 
