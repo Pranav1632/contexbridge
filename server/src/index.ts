@@ -108,8 +108,6 @@ app.get('/api/context/export/markdown', (c) => {
   }
   return c.text('# No Context Available', 404);
 });
-  return c.text('# No Context Available', 404);
-});
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3100;
 console.log(`\n🌉 ContextBridge Local Engine running on http://localhost:${PORT}`);
