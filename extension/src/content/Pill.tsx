@@ -56,7 +56,8 @@ export const Pill: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
-      setStatus('Server offline (:3100)');
+      const isConnectionError = err.message?.includes('Failed to fetch') || err.name === 'TypeError';
+      setStatus(isConnectionError ? 'Server offline (:3100)' : `Error: ${err.message || 'Distillation failed'}`);
       setStatusType('error');
     } finally {
       setLoading(false);

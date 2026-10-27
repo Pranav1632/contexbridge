@@ -81,9 +81,13 @@ app.post('/api/capture', async (c) => {
 // 4. Read active bundle
 app.get('/api/context/active', (c) => {
   const activePath = path.resolve(process.cwd(), '.contextbridge', 'active_context.json');
-  if (fs.existsSync(activePath)) {
-    const raw = fs.readFileSync(activePath, 'utf-8');
-    return c.json(JSON.parse(raw));
+  const globalPath = path.join(path.resolve(process.env.USERPROFILE || process.env.HOME || ''), '.contextbridge', 'active_context.json');
+  
+  for (const p of [activePath, globalPath]) {
+    if (fs.existsSync(p)) {
+      const raw = fs.readFileSync(p, 'utf-8');
+      return c.json(JSON.parse(raw));
+    }
   }
   return c.json({ status: 'empty', message: 'No active context recorded yet' }, 404);
 });
@@ -91,13 +95,19 @@ app.get('/api/context/active', (c) => {
 // 5. Download Handoff Markdown
 app.get('/api/context/export/markdown', (c) => {
   const mdPath = path.resolve(process.cwd(), '.contextbridge', 'handoff.md');
-  if (fs.existsSync(mdPath)) {
-    const md = fs.readFileSync(mdPath, 'utf-8');
-    return c.text(md, 200, {
-      'Content-Type': 'text/markdown; charset=utf-8',
-      'Content-Disposition': 'attachment; filename="contextbridge-handoff.md"',
-    });
+  const globalMdPath = path.join(path.resolve(process.env.USERPROFILE || process.env.HOME || ''), '.contextbridge', 'handoff.md');
+  
+  for (const p of [mdPath, globalMdPath]) {
+    if (fs.existsSync(p)) {
+      const md = fs.readFileSync(p, 'utf-8');
+      return c.text(md, 200, {
+        'Content-Type': 'text/markdown; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="contextbridge-handoff.md"',
+      });
+    }
   }
+  return c.text('# No Context Available', 404);
+});
   return c.text('# No Context Available', 404);
 });
 
