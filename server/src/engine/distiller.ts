@@ -65,8 +65,14 @@ ${fullText}
 `;
 
     const genAI = new GoogleGenerativeAI(apiKey.trim());
-    // Auto-detect or use standard supported Gemini model identifier
-    const modelCandidates = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
+    // Supported active models for Google Gemini
+    const modelCandidates = [
+      'gemini-3.5-flash',
+      'gemini-3.5-flash-lite',
+      'gemini-3.7-flash',
+      'gemini-3.8-flash',
+      'gemini-2.5-flash'
+    ];
     let result = null;
     let lastModelErr = null;
 
