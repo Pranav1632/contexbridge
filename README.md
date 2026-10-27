@@ -36,37 +36,39 @@
 
 ```mermaid
 flowchart TD
-    subgraph Browser ["1. Ambient Browser Layer"]
-        Tab["Active Tab\n(ChatGPT / Claude / Gemini / Mock)"]
-        Scraper["DOM Content Scraper\n(chatgpt.com / claude.ai / localhost)"]
-        Pill["Ambient Floating Pill\n(Live Turn Counter & 1-Click Bridge)"]
-        Tab --> Scraper --> Pill
+    subgraph Browser["1. Ambient Browser Layer"]
+        Tab["Active Tab - ChatGPT / Claude / Gemini / Mock"]
+        Scraper["DOM Content Scraper"]
+        Pill["Ambient Floating Pill - 1-Click Bridge"]
+        Tab --> Scraper
+        Scraper --> Pill
     end
 
-    subgraph Server ["2. Local Cognitive Engine (:3100)"]
-        Ingest["Hono Orchestrator\n(/api/capture)"]
-        Distiller["Distillation Pipeline\n(Gemini 3.5 / 3.8 Flash)"]
-        Zod["OpenContext Schema Validation\n(Goal, Decisions, Code, Blockers)"]
+    subgraph Server["2. Local Cognitive Engine :3100"]
+        Ingest["Hono Orchestrator - /api/capture"]
+        Distiller["Distillation Pipeline - Gemini 3.5 / 3.8 Flash"]
+        Zod["OpenContext Schema Validation"]
         
-        Pill -->|HTTP POST| Ingest
-        Ingest --> Distiller --> Zod
+        Pill --> Ingest
+        Ingest --> Distiller
+        Distiller --> Zod
     end
 
-    subgraph Storage ["3. Structured Storage & File Generation"]
-        Global["Universal Store\n(~/.contextbridge/)"]
-        RootFiles["Auto-Generated Prompt Files\n(CODEX.md / AGENTS.md / CLAUDE.md)"]
-        Subfolders["Deep Context Hierarchy\n(context/ & memory/ subfolders)"]
+    subgraph Storage["3. Structured Storage & File Generation"]
+        Global["Universal Store - ~/.contextbridge/"]
+        RootFiles["Auto-Generated Prompt Files - CODEX.md / AGENTS.md / CLAUDE.md"]
+        Subfolders["Deep Context Hierarchy - context/ & memory/"]
         
         Zod --> Global
         Global --> RootFiles
         Global --> Subfolders
     end
 
-    subgraph Agents ["4. Coding Agents & Consumer Tools"]
-        MCP["Model Context Protocol (MCP) Server\n(tools: get_active_context, get_decisions)"]
-        Codex["OpenAI Codex\n(Reads CODEX.md / MCP)"]
-        Cursor["Cursor / Windsurf\n(MCP Tool Provider)"]
-        ClaudeCode["Claude Code CLI\n(Reads CLAUDE.md)"]
+    subgraph Agents["4. Coding Agents & Consumer Tools"]
+        MCP["Model Context Protocol Server"]
+        Codex["OpenAI Codex"]
+        Cursor["Cursor / Windsurf"]
+        ClaudeCode["Claude Code CLI"]
 
         Global --> MCP
         MCP --> Cursor
